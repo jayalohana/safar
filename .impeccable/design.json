@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-15T19:30:00-04:00",
+  "title": "Design System: Safar",
+  "extensions": {
+    "colorMeta": {
+      "midnight-road": { "role": "neutral", "displayName": "Midnight Road", "canonical": "#08090f", "tonalRamp": ["#08090f", "#11131c", "#252836", "#434755", "#676b78", "#9295a0", "#c4c5cb", "#f3f3f5"] },
+      "journey-cream": { "role": "neutral", "displayName": "Journey Cream", "canonical": "#f7eddb", "tonalRamp": ["#241d14", "#443929", "#665a47", "#8c806b", "#b2a590", "#d5c9b6", "#eee3d1", "#fff8ed"] },
+      "bright-brass": { "role": "primary", "displayName": "Bright Road Brass", "canonical": "#f2c75f", "tonalRamp": ["#261c05", "#49380b", "#705615", "#987722", "#bf9937", "#dfb84f", "#f2d58b", "#fff4d5"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Urdu Identity", "purpose": "The single dominant Safar wordmark." },
+      "body": { "displayName": "Editorial Sans", "purpose": "Routes and track metadata." },
+      "label": { "displayName": "Road Measurement", "purpose": "Taglines, times, status, and journey labels." }
+    },
+    "shadows": [
+      { "name": "player-separation", "value": "0 0 0 14px rgba(5,6,11,.72), 0 22px 58px rgba(0,0,0,.5)", "purpose": "Separates the one player surface from the road scene." },
+      { "name": "control-lift", "value": "0 4px 19px rgba(241,195,95,.17)", "purpose": "Reserved for play and pause." }
+    ],
+    "motion": [
+      { "name": "cinema-ease", "value": "cubic-bezier(0.22, 0.82, 0.24, 1)", "purpose": "Route crossfades and restrained control movement." }
+    ],
+    "breakpoints": [
+      { "name": "laptop", "value": "1180px" },
+      { "name": "tablet", "value": "900px" },
+      { "name": "mobile", "value": "640px" },
+      { "name": "small-mobile", "value": "390px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Play Control",
+      "kind": "button",
+      "refersTo": "play-control",
+      "description": "The single high-emphasis playback action.",
+      "html": "<button class=\"ds-play\" aria-label=\"Play\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"m9 7 8 5-8 5z\"/></svg></button>",
+      "css": ".ds-play{display:grid;width:68px;height:68px;place-items:center;border:0;border-radius:50%;color:#111018;background:#f7eddb;box-shadow:0 4px 19px rgba(241,195,95,.17);cursor:pointer;transition:transform .18s,background .18s}.ds-play svg{width:30px;height:30px;fill:currentColor}.ds-play:hover{background:#fff4d7;transform:translateY(-1px)}.ds-play:focus-visible{outline:2px solid #f2c75f;outline-offset:4px}"
+    },
+    {
+      "name": "Active Route",
+      "kind": "nav",
+      "refersTo": "route-active",
+      "description": "Quiet route navigation with one precise brass indicator.",
+      "html": "<button class=\"ds-route\"><span></span>Lahore → Islamabad</button>",
+      "css": ".ds-route{position:relative;display:flex;align-items:center;min-height:44px;padding:4px 8px 4px 23px;border:0;color:#f2c75f;background:linear-gradient(90deg,rgba(219,169,62,.1),transparent 90%);font:500 15px 'Avenir Next',sans-serif;cursor:pointer}.ds-route:before{position:absolute;inset:7px auto 7px 0;width:2px;content:'';background:#f2c75f}.ds-route span{width:8px;height:8px;margin-right:14px;border-radius:50%;background:#f2c75f}.ds-route:focus-visible{outline:2px solid #f2c75f;outline-offset:4px}"
+    },
+    {
+      "name": "Player Surface",
+      "kind": "custom",
+      "refersTo": "player-surface",
+      "description": "The sole floating surface in the Safar composition.",
+      "html": "<section class=\"ds-player\"><div class=\"ds-media\">200 × 200</div><div><small>NOW PLAYING</small><h3>Mera Bichraa Yaar</h3><p>Strings</p></div></section>",
+      "css": ".ds-player{display:grid;grid-template-columns:200px 1fr;gap:28px;align-items:center;padding:25px 28px 19px;border:1px solid rgba(242,207,137,.29);border-radius:28px;color:#f7eddb;background:linear-gradient(120deg,rgba(22,18,25,.84),rgba(15,14,20,.7) 57%,rgba(27,18,18,.76));box-shadow:0 22px 58px rgba(0,0,0,.5)}.ds-media{display:grid;width:200px;height:200px;place-items:center;border-radius:8px;background:#08090f;color:#d9cab4}.ds-player small{color:#f2c75f;letter-spacing:.17em}.ds-player h3{margin:14px 0 3px;font:600 27px 'Avenir Next',sans-serif}.ds-player p{margin:0;color:#d9cab4}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Living Motorway",
+    "overview": "Safar is a cinematic listening surface in which the interface remains calm and fixed while the road environment changes around it. The visual world comes from midnight asphalt, brass ornament, cream sign-painting, Pakistani truck detail, and the glow of a long journey after dusk.",
+    "keyCharacteristics": ["Full-bleed road atmosphere with one stationary interface.", "Brass is rare, directional, and meaningful.", "Large Urdu identity; small editorial English labels.", "One integrated smoked player surface, not a family of cards.", "Motion is slow, environmental, and reduced-motion safe."],
+    "rules": [
+      { "name": "The Brass Rarity Rule", "body": "Brass marks identity, active state, progress, and direction; it never becomes a broad decorative fill.", "section": "colors" },
+      { "name": "The Two-Voices Rule", "body": "Expressive Urdu leads; English supports through clean small-scale typography and never competes at display size.", "section": "typography" },
+      { "name": "The One-Surface Rule", "body": "The player may float; route items, journey metrics, and identity remain typographic and unboxed.", "section": "elevation" }
+    ],
+    "dos": ["Do preserve the stationary interface while the environment changes.", "Do keep the YouTube player visible, unobscured, and at least 200×200.", "Do maintain 44px touch targets and visible focus rings."],
+    "donts": ["Don't add generic music-app navigation or card grids.", "Don't change the environment when a track changes.", "Don't hide, mask, or place controls over the YouTube iframe."]
+  }
+}
