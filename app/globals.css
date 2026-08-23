@@ -1840,3 +1840,162 @@
   @media (max-height: 740px) and (min-width: 641px) {
     .player { bottom: 59px; }
   }
+
+  /* ─── Truck horn (ہارن دبائیے): self-contained steering-wheel easter egg ─── */
+  .truck-horn {
+    --horn-size: 74px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    pointer-events: auto;
+  }
+
+  /* Same quiet dark pool the routes rail and center stage get, so the wheel
+     and its Urdu label stay legible over the painted truck art. */
+  .truck-horn::before {
+    position: absolute;
+    z-index: -1;
+    inset: -40px -84px -46px;
+    content: "";
+    background: radial-gradient(closest-side at center, rgba(7, 18, 24, 0.78), rgba(7, 18, 24, 0.46) 56%, transparent 100%);
+    pointer-events: none;
+  }
+
+  .truck-horn__wheel {
+    position: relative;
+    display: grid;
+    width: calc(var(--horn-size) * 1.24);
+    height: calc(var(--horn-size) * 1.24);
+    padding: 0;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    filter: drop-shadow(0 5px 12px rgba(5, 6, 11, 0.6));
+    transition: transform 150ms var(--ease-cinema), filter 220ms ease;
+  }
+
+  .truck-horn__art {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .truck-horn__wheel:hover {
+    transform: scale(1.03);
+    filter: drop-shadow(0 4px 10px rgba(5, 6, 11, 0.55)) drop-shadow(0 0 9px rgba(242, 199, 95, 0.22));
+  }
+
+  .truck-horn__wheel:active,
+  .truck-horn__wheel.is-pressed {
+    transform: scale(0.92);
+    transition-duration: 90ms;
+  }
+
+  .truck-horn__hub {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform 150ms var(--ease-cinema);
+  }
+
+  .truck-horn__wheel:active .truck-horn__hub,
+  .truck-horn__wheel.is-pressed .truck-horn__hub {
+    transform: scale(0.88);
+    transition-duration: 90ms;
+  }
+
+  .truck-horn__waves {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .truck-horn__waves-side {
+    fill: none;
+    stroke: var(--brass-bright);
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    opacity: 0;
+    animation: horn-wave 460ms var(--ease-cinema) forwards;
+  }
+
+  .truck-horn__waves-side--left { transform-origin: 62px 62px; animation-name: horn-wave-left; }
+  .truck-horn__waves-side--right { transform-origin: 62px 62px; animation-name: horn-wave-right; }
+
+  .truck-horn__audio {
+    display: none !important;
+  }
+
+  .truck-horn__label {
+    color: var(--cream);
+    font-family: var(--urdu);
+    font-size: 13px;
+    line-height: 1.7;
+    opacity: 0.9;
+    text-shadow: 0 1px 4px rgba(5, 6, 11, 0.95), 0 2px 14px rgba(5, 6, 11, 0.95);
+  }
+
+  @keyframes horn-wave-left {
+    0% { opacity: 0; transform: translateX(2px); }
+    30% { opacity: 0.9; }
+    100% { opacity: 0; transform: translateX(-3px); }
+  }
+
+  @keyframes horn-wave-right {
+    0% { opacity: 0; transform: translateX(-2px); }
+    30% { opacity: 0.9; }
+    100% { opacity: 0; transform: translateX(3px); }
+  }
+
+  @media (max-width: 900px) {
+    .truck-horn {
+      --horn-size: 66px;
+    }
+
+    .truck-horn__label {
+      font-size: 12px;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .truck-horn {
+      --horn-size: 58px;
+      gap: 7px;
+      margin-top: 8px;
+    }
+
+    .truck-horn__label {
+      font-size: 11px;
+    }
+  }
+
+  @media (max-height: 700px) and (min-width: 641px) {
+    .truck-horn {
+      --horn-size: 62px;
+      gap: 6px;
+      margin-top: 4px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .truck-horn__wheel,
+    .truck-horn__wheel:hover,
+    .truck-horn__wheel:active,
+    .truck-horn__wheel.is-pressed,
+    .truck-horn__hub,
+    .truck-horn__wheel:active .truck-horn__hub,
+    .truck-horn__wheel.is-pressed .truck-horn__hub {
+      transform: none;
+    }
+
+    .truck-horn__waves-side {
+      animation: none;
+      opacity: 0;
+    }
+  }

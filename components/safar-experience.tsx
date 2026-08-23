@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_BACKGROUND, SPOTIFY_URL, defaultPlaylist, routes, type Route, type Track } from "@/lib/safar-data";
+import { TruckHorn } from "@/components/truck-horn";
 
 const YT_API_ID = "safar-youtube-iframe-api";
 
@@ -408,6 +409,7 @@ export function SafarExperience() {
         <div className="journey-reserve">
           {activeRoute && <JourneyProgress route={activeRoute} elapsed={listenedDuration} travelled={travelled} remaining={remaining} songsCompleted={songsCompleted} />}
         </div>
+        <TruckHorn />
       </section>
       <MusicPlayer track={currentTrack} isPlaying={isPlaying} currentTime={currentTime} duration={duration} error={error} audioConnected={youtubeReady && error === null} onToggle={togglePlayback} onPrevious={handlePrevious} onNext={handleNext} onSeekTo={seekTo} />
       <div id="safar-youtube-player" className="audio-engine" aria-hidden="true" />
