@@ -2,27 +2,43 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_BACKGROUND, SPOTIFY_URL, defaultPlaylist, routes, type Route, type Track } from "@/lib/safar-data";
-import { TruckHorn } from "@/components/truck-horn";
-
-const YT_API_ID = "safar-youtube-iframe-api";
 
 type YouTubePlayer = {
-  loadVideoById: (videoId: string, startSeconds?: number, quality?: string) => void;
-  cueVideoById: (videoId: string, startSeconds?: number, quality?: string) => void;
   playVideo: () => void;
   pauseVideo: () => void;
-  seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
+  cueVideoById: (args: { videoId: string; startSeconds?: number }) => void;
+  loadVideoById: (args: { videoId: string; startSeconds?: number }) => void;
+  seekTo: (seconds: number, allowSeekAhead: boolean) => void;
   getCurrentTime: () => number;
+  getDuration: () => number;
   destroy: () => void;
 };
 
+type YouTubeEvent = { data: number; target: YouTubePlayer };
+
 declare global {
   interface Window {
-    YT?: {
-      Player: new (elementId: string, options: Record<string, unknown>) => void;
-    };
+    YT?: { Player: new (element: HTMLElement, options: Record<string, unknown>) => YouTubePlayer };
     onYouTubeIframeAPIReady?: () => void;
   }
+}
+
+let youtubeApiPromise: Promise<void> | null = null;
+
+function loadYouTubeApi() {
+  if (window.YT?.Player) return Promise.resolve();
+  if (youtubeApiPromise) return youtubeApiPromise;
+  youtubeApiPromise = new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[src="https://www.youtube.com/iframe_api"]');
+    window.onYouTubeIframeAPIReady = resolve;
+    if (existing) return;
+    const script = document.createElement("script");
+    script.src = "https://www.youtube.com/iframe_api";
+    script.async = true;
+    script.onerror = () => reject(new Error("YouTube player API failed to load"));
+    document.head.appendChild(script);
+  });
+  return youtubeApiPromise;
 }
 
 type IconName = "spotify" | "external" | "play" | "pause" | "next" | "previous" | "rewind" | "forward" | "road" | "pin" | "music";
@@ -147,46 +163,52 @@ type PlayerProps = {
   currentTime: number;
   duration: number;
   error: string | null;
-  audioConnected: boolean;
   onToggle: () => void;
   onPrevious: () => void;
   onNext: () => void;
+  onSeekBy: (seconds: number) => void;
   onSeekTo: (seconds: number) => void;
+  youtubeHostRef: React.RefObject<HTMLDivElement | null>;
 };
 
-function MusicPlayer({ track, isPlaying, currentTime, duration, error, audioConnected, onToggle, onPrevious, onNext, onSeekTo }: PlayerProps) {
+function MusicPlayer({ track, isPlaying, currentTime, duration, error, onToggle, onPrevious, onNext, onSeekBy, onSeekTo, youtubeHostRef }: PlayerProps) {
   const safeDuration = duration || track.duration;
-  const progress = Math.min((currentTime / Math.max(safeDuration, 1)) * 100, 100);
   return (
-    <section className="player" aria-label="Music player" aria-describedby="player-local-status">
-      <span id="player-local-status" className="sr-only">{audioConnected ? "Audio is streamed live from YouTube." : "Playback is a local preview; no audio source is connected."}</span>
+    <section className="player" aria-label="Music player">
       <div className="player__main">
-        <div className="artwork artwork--cover" role="img" aria-label={`Safar cover for ${track.title}`}>
-          <div className="cover__glow" />
-          <div className="cover__road" />
-          <div className="cover__mark" lang="ur" dir="rtl">سفر</div>
-          <div className="cover__status" aria-hidden="true"><span className={isPlaying ? "is-playing" : ""} /></div>
+        <div className="artwork artwork--youtube" aria-label={`YouTube player for ${track.title}`}>
+          <div ref={youtubeHostRef} className="youtube-player" />
         </div>
         <div className="track-copy">
+          <span className="now-playing">{error ? "Media required" : "Now playing"}</span>
           <h3>{track.title}</h3>
-          <p>{track.artist}</p>
-          <span className={error ? "track-copy__status is-error" : "track-copy__status"} role={error ? "alert" : "status"}>{error || (audioConnected ? "Live audio · YouTube" : "Preview mode · audio unavailable")}</span>
-          <div className="timeline">
-            <input aria-label={`Seek ${track.title}`} type="range" min="0" max={Math.max(safeDuration, 1)} step="0.1" value={Math.min(currentTime, safeDuration)} onChange={(event) => onSeekTo(Number(event.target.value))} style={{ "--progress": `${progress}%` } as React.CSSProperties} />
-            <span className="timeline__time">{formatTime(currentTime)} / {formatTime(safeDuration)}</span>
-          </div>
+          <p role={error ? "alert" : undefined} aria-live={error ? "polite" : undefined}>{error || track.artist}</p>
         </div>
         <div className="controls">
-          <button type="button" onClick={onPrevious} aria-label="Previous track"><Icon name="previous" size={27} /></button>
-          <button type="button" className="play-control" onClick={onToggle} aria-label={isPlaying ? "Pause" : "Play"} aria-pressed={isPlaying}><Icon name={isPlaying ? "pause" : "play"} size={30} /></button>
-          <button type="button" onClick={onNext} aria-label="Next track"><Icon name="next" size={27} /></button>
-        </div>
+          <button className="seek-control" onClick={() => onSeekBy(-10)} aria-label="Seek backward 10 seconds"><Icon name="rewind" /></button>
+          <button onClick={onPrevious} aria-label="Previous track"><Icon name="previous" size={27} /></button>
+          <button className="play-control" onClick={onToggle} aria-label={isPlaying ? "Pause" : "Play"}><Icon name={isPlaying ? "pause" : "play"} size={30} /></button>
+          <button onClick={onNext} aria-label="Next track"><Icon name="next" size={27} /></button>
+          <button className="seek-control" onClick={() => onSeekBy(10)} aria-label="Seek forward 10 seconds"><Icon name="forward" /></button>
+        </div>. 
+      </div>
+      <div className="timeline">
+        <time>{formatTime(currentTime)}</time>
+        <input aria-label="Track progress" type="range" min="0" max={Math.max(safeDuration, 1)} step="0.1" value={Math.min(currentTime, safeDuration)} onChange={(event) => onSeekTo(Number(event.target.value))} style={{ "--progress": `${Math.min((currentTime / Math.max(safeDuration, 1)) * 100, 100)}%` } as React.CSSProperties} />
+        <time>{formatTime(safeDuration)}</time>
       </div>
     </section>
   );
 }
 
 export function SafarExperience() {
+  const youtubeHostRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<YouTubePlayer | null>(null);
+  const playerReadyRef = useRef(false);
+  const currentTrackRef = useRef<Track>(defaultPlaylist.tracks[0]);
+  const endedHandlerRef = useRef<() => void>(() => undefined);
+  const shouldResumeRef = useRef(false);
+  const restoreTimeRef = useRef(0);
   const stateRef = useRef({ routeId: null as string | null, trackIndex: 0, currentTime: 0, completedDuration: 0, songsCompleted: 0 });
   const [activeRoute, setActiveRoute] = useState<Route | null>(null);
   const [trackIndex, setTrackIndex] = useState(0);
@@ -196,12 +218,10 @@ export function SafarExperience() {
   const [songsCompleted, setSongsCompleted] = useState(0);
   const [completedDuration, setCompletedDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [youtubeReady, setYoutubeReady] = useState(false);
-  const playerRef = useRef<YouTubePlayer | null>(null);
-  const endedRef = useRef<() => void>(() => {});
 
   const playlist = activeRoute?.tracks || defaultPlaylist.tracks;
   const currentTrack = playlist[trackIndex] || playlist[0];
+  currentTrackRef.current = currentTrack;
   const totalPlaylistDuration = useMemo(() => playlist.reduce((sum, track) => sum + track.duration, 0), [playlist]);
   const listenedDuration = completedDuration + currentTime;
   const progress = activeRoute ? Math.min(Math.max(listenedDuration / totalPlaylistDuration, 0), 1) : 0;
@@ -215,7 +235,7 @@ export function SafarExperience() {
       const savedRoute = routes.find((route) => route.id === saved.routeId) || null;
       const targetPlaylist = savedRoute?.tracks || defaultPlaylist.tracks;
       const savedIndex = Math.min(Math.max(saved.trackIndex || 0, 0), targetPlaylist.length - 1);
-      setCurrentTime(Math.min(Math.max(saved.currentTime || 0, 0), targetPlaylist[savedIndex]?.duration || 0));
+      restoreTimeRef.current = Math.max(saved.currentTime || 0, 0);
       setActiveRoute(savedRoute);
       setTrackIndex(savedIndex);
       setCompletedDuration(Math.max(Number(saved.completedDuration) || 0, 0));
@@ -235,78 +255,75 @@ export function SafarExperience() {
   }, []);
 
   useEffect(() => {
-    setDuration(currentTrack.duration);
-    setError(null);
-  }, [currentTrack.id, currentTrack.duration]);
-
-  useEffect(() => {
-    let disposed = false;
-
-    const createPlayer = () => {
-      if (disposed || playerRef.current || !window.YT?.Player) return;
-      const player = new window.YT.Player("safar-youtube-player", {
+    let cancelled = false;
+    loadYouTubeApi().then(() => {
+      if (cancelled || !youtubeHostRef.current || !window.YT) return;
+      playerRef.current = new window.YT.Player(youtubeHostRef.current, {
         width: 200,
         height: 200,
-        videoId: "",
-        playerVars: {
-          autoplay: 0,
-          controls: 0,
-          disablekb: 1,
-          fs: 0,
-          iv_load_policy: 3,
-          modestbranding: 1,
-          playsinline: 1,
-          rel: 0,
-        },
+        videoId: currentTrackRef.current.youtubeId,
+        host: "https://www.youtube-nocookie.com",
+        playerVars: { controls: 0, playsinline: 1, rel: 0, origin: window.location.origin },
         events: {
-          onReady: () => { if (!disposed) setYoutubeReady(true); },
-          onStateChange: (event: { data: number }) => {
-            if (event.data === 0) endedRef.current();
-            else if (event.data === 1) setIsPlaying(true);
-            else if (event.data === 2) setIsPlaying(false);
+          onReady: (event: YouTubeEvent) => {
+            playerReadyRef.current = true;
+            const startSeconds = restoreTimeRef.current;
+            restoreTimeRef.current = 0;
+            event.target.cueVideoById({ videoId: currentTrackRef.current.youtubeId, startSeconds });
+            setDuration(event.target.getDuration() || currentTrackRef.current.duration);
           },
-          onError: (event: { data: number }) => {
-            if (event.data === 100 || event.data === 101 || event.data === 150) setError("This track isn't available on YouTube");
-            else if (event.data === 2) setError("Video unavailable on YouTube");
-            else setError("Audio couldn't start on YouTube");
+          onStateChange: (event: YouTubeEvent) => {
+            if (event.data === 1) { setIsPlaying(true); setError(null); }
+            if (event.data === 2) setIsPlaying(false);
+            if (event.data === 0) endedHandlerRef.current();
           },
+          onError: () => { setIsPlaying(false); setError("This YouTube track is unavailable. Try the next one."); },
+          onAutoplayBlocked: () => { setIsPlaying(false); setError("Press play to continue this journey."); },
         },
       });
-      playerRef.current = player as unknown as YouTubePlayer;
-    };
-
-    if (window.YT?.Player) {
-      createPlayer();
-    } else {
-      window.onYouTubeIframeAPIReady = createPlayer;
-      let script = document.getElementById(YT_API_ID) as HTMLScriptElement | null;
-      if (!script) {
-        script = document.createElement("script");
-        script.id = YT_API_ID;
-        script.src = "https://www.youtube.com/iframe_api";
-        script.async = true;
-        document.body.appendChild(script);
-      }
-      script.addEventListener("load", createPlayer, { once: true });
-    }
-
+    }).catch(() => setError("YouTube could not load. Check your connection and try again."));
     return () => {
-      disposed = true;
+      cancelled = true;
+      playerReadyRef.current = false;
       playerRef.current?.destroy();
       playerRef.current = null;
     };
   }, []);
 
+  useEffect(() => {
+    if (!playerReadyRef.current || !playerRef.current) return;
+    const startSeconds = restoreTimeRef.current;
+    restoreTimeRef.current = 0;
+    setCurrentTime(startSeconds);
+    setDuration(currentTrack.duration);
+    setError(null);
+    if (shouldResumeRef.current) playerRef.current.loadVideoById({ videoId: currentTrack.youtubeId, startSeconds });
+    else playerRef.current.cueVideoById({ videoId: currentTrack.youtubeId, startSeconds });
+  }, [currentTrack.id, currentTrack.youtubeId, currentTrack.duration]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const player = playerRef.current;
+      if (!playerReadyRef.current || !player) return;
+      const nextTime = player.getCurrentTime();
+      const nextDuration = player.getDuration();
+      if (Number.isFinite(nextTime)) setCurrentTime(nextTime);
+      if (Number.isFinite(nextDuration) && nextDuration > 0) setDuration(nextDuration);
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const goToTrack = useCallback((nextIndex: number, resume = isPlaying) => {
-    setIsPlaying(resume);
-    setCurrentTime(0);
+    shouldResumeRef.current = resume;
     setTrackIndex((nextIndex + playlist.length) % playlist.length);
   }, [isPlaying, playlist.length]);
 
   const handleNext = useCallback(() => goToTrack(trackIndex + 1), [goToTrack, trackIndex]);
 
   const handlePrevious = useCallback(() => {
-    if (currentTime > 3) {
+    const player = playerRef.current;
+    if (player && player.getCurrentTime() > 3) {
+      player.seekTo(0, true);
       setCurrentTime(0);
       return;
     }
@@ -316,24 +333,32 @@ export function SafarExperience() {
   const handleEnded = useCallback(() => {
     setSongsCompleted((count) => count + 1);
     setCompletedDuration((value) => value + (duration || currentTrack.duration));
-    setCurrentTime(0);
+    shouldResumeRef.current = true;
     setTrackIndex((index) => (index + 1) % playlist.length);
   }, [currentTrack.duration, duration, playlist.length]);
-  endedRef.current = handleEnded;
+
+  endedHandlerRef.current = handleEnded;
 
   const togglePlayback = () => {
-    const hadError = error !== null;
-    setError(null);
     const player = playerRef.current;
-    if (player && youtubeReady && !hadError) {
-      if (isPlaying) player.pauseVideo();
-      else player.playVideo();
+    if (!playerReadyRef.current || !player) {
+      setError("YouTube is still loading. Try again in a moment.");
       return;
     }
-    setIsPlaying((playing) => !playing);
+    if (!isPlaying) {
+      shouldResumeRef.current = true;
+      player.playVideo();
+    } else {
+      shouldResumeRef.current = false;
+      player.pauseVideo();
+    }
   };
 
   const selectRoute = (route: Route) => {
+    const resume = isPlaying;
+    playerRef.current?.pauseVideo();
+    shouldResumeRef.current = resume;
+    restoreTimeRef.current = 0;
     setIsPlaying(false);
     setActiveRoute(route);
     setTrackIndex(0);
@@ -343,54 +368,21 @@ export function SafarExperience() {
     setError(null);
   };
 
-  const seekTo = (seconds: number) => {
-    const clamped = Math.min(Math.max(seconds, 0), duration || currentTrack.duration);
-    setCurrentTime(clamped);
-    playerRef.current?.seekTo?.(clamped, true);
+  const seekBy = (seconds: number) => {
+    const player = playerRef.current;
+    if (!playerReadyRef.current || !player) return;
+    const end = player.getDuration() || currentTrack.duration;
+    const nextTime = Math.min(Math.max(player.getCurrentTime() + seconds, 0), end);
+    player.seekTo(nextTime, true);
+    setCurrentTime(nextTime);
   };
 
-  useEffect(() => {
+  const seekTo = (seconds: number) => {
     const player = playerRef.current;
-    if (!youtubeReady || error || !player) return;
-    const start = currentTime > 0 ? currentTime : undefined;
-    if (isPlaying) player.loadVideoById(currentTrack.youtubeId, start);
-    else player.cueVideoById(currentTrack.youtubeId, start);
-  }, [youtubeReady]);
-
-  useEffect(() => {
-    const player = playerRef.current;
-    if (!youtubeReady || error || !player) return;
-    const start = currentTime > 0 ? currentTime : undefined;
-    if (isPlaying) player.loadVideoById(currentTrack.youtubeId, start);
-    else player.cueVideoById(currentTrack.youtubeId, start);
-  }, [currentTrack.id, error]);
-
-  useEffect(() => {
-    const player = playerRef.current;
-    const usingYouTube = Boolean(youtubeReady && !error && player);
-    if (usingYouTube) {
-      if (!isPlaying || !player) return;
-      const timer = window.setInterval(() => {
-        let current = 0;
-        try { current = player.getCurrentTime(); } catch { /* ignore transient player errors */ }
-        if (Number.isFinite(current) && current >= 0) setCurrentTime(Math.min(current, duration || currentTrack.duration));
-      }, 500);
-      return () => window.clearInterval(timer);
-    }
-    if (!isPlaying) return;
-    const timer = window.setInterval(() => {
-      setCurrentTime((time) => {
-        const nextTime = Math.min(time + 0.25, duration || currentTrack.duration);
-        if (nextTime >= (duration || currentTrack.duration)) {
-          window.clearInterval(timer);
-          handleEnded();
-          return 0;
-        }
-        return nextTime;
-      });
-    }, 250);
-    return () => window.clearInterval(timer);
-  }, [currentTrack.duration, duration, error, handleEnded, isPlaying, youtubeReady]);
+    if (!playerReadyRef.current || !player) return;
+    player.seekTo(seconds, true);
+    setCurrentTime(seconds);
+  };
 
   return (
     <main className="safar-shell">
@@ -409,10 +401,23 @@ export function SafarExperience() {
         <div className="journey-reserve">
           {activeRoute && <JourneyProgress route={activeRoute} elapsed={listenedDuration} travelled={travelled} remaining={remaining} songsCompleted={songsCompleted} />}
         </div>
-        <TruckHorn />
       </section>
-      <MusicPlayer track={currentTrack} isPlaying={isPlaying} currentTime={currentTime} duration={duration} error={error} audioConnected={youtubeReady && error === null} onToggle={togglePlayback} onPrevious={handlePrevious} onNext={handleNext} onSeekTo={seekTo} />
-      <div id="safar-youtube-player" className="audio-engine" aria-hidden="true" />
+      <MusicPlayer track={currentTrack} isPlaying={isPlaying} currentTime={currentTime} duration={duration} error={error} onToggle={togglePlayback} onPrevious={handlePrevious} onNext={handleNext} onSeekBy={seekBy} onSeekTo={seekTo} youtubeHostRef={youtubeHostRef} />
+      <p className="footer-note">Crafted for the roads. Made for the journey.</p>
     </main>
   );
 }
+
+
+//daily
+//daily
+//daily
+//daily
+//daily
+//daily
+//daily
+//daily
+//daily
+//daily
+//daily
+//daily

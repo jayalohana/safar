@@ -45,7 +45,3 @@ if (playbackTime <= 0) throw new Error("YouTube playback time did not advance.")
 
 console.log(JSON.stringify({ routesChecked: routeLabels.length, metadataControls: "pass", youtubePlayback: "pass" }));
 await browser.close();
-
-
-//daily
-//daily
