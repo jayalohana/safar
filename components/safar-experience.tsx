@@ -407,10 +407,3 @@ export function SafarExperience() {
     </main>
   );
 }
-
-
-//daily
-//daily
-//daily
-//daily
-//daily
